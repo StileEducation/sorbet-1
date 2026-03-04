@@ -43,7 +43,7 @@ another managed environment.
 Add a config entry with `"transport": "tcp"` to your `.vscode/settings.json`:
 
 ```json
-"sorbet.userLspConfigs": [{
+"sorbet.lspConfigs": [{
   "id": "docker-lsp",
   "name": "Sorbet (Docker)",
   "description": "Connect to LSP managed by Docker Compose",
