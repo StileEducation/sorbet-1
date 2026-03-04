@@ -35,7 +35,7 @@ The Sorbet extension for VS Code is powered by the
 ## TCP Transport (Docker / Remote LSP)
 
 The extension can connect to a Sorbet LSP server over TCP instead of spawning a
-local subprocess. This is useful when Sorbet runs inside Docker Compose or
+local subprocess. This is useful when Sorbet runs remotely, inside Docker Compose or
 another managed environment.
 
 ### VSCode configuration
