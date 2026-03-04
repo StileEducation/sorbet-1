@@ -6,7 +6,6 @@ import {
   EventEmitter,
   ExtensionContext,
   FileSystemWatcher,
-  Memento,
   workspace,
 } from "vscode";
 import * as fs from "fs";
@@ -124,15 +123,14 @@ export interface ISorbetWorkspaceContext extends Disposable {
 export class DefaultSorbetWorkspaceContext implements ISorbetWorkspaceContext {
   private cachedSorbetConfiguration;
   private readonly disposables: Disposable[];
-  private readonly workspaceState: Memento;
+  private readonly memoryState = new Map<string, any>();
   private readonly onDidChangeConfigurationEmitter: EventEmitter<
     ConfigurationChangeEvent
   >;
 
-  constructor(extensionContext: ExtensionContext) {
+  constructor(_extensionContext: ExtensionContext) {
     this.cachedSorbetConfiguration = workspace.getConfiguration("sorbet");
     this.onDidChangeConfigurationEmitter = new EventEmitter();
-    this.workspaceState = extensionContext.workspaceState;
 
     this.disposables = [
       this.onDidChangeConfigurationEmitter,
@@ -153,7 +151,7 @@ export class DefaultSorbetWorkspaceContext implements ISorbetWorkspaceContext {
   public get<T>(section: string, defaultValue: T): T {
     const stateKey = `sorbet.${section}`;
     return (
-      this.workspaceState.get<T>(stateKey) ??
+      (this.memoryState.get(stateKey) as T | undefined) ??
       this.cachedSorbetConfiguration.get(section, defaultValue)
     );
   }
@@ -164,10 +162,10 @@ export class DefaultSorbetWorkspaceContext implements ISorbetWorkspaceContext {
     const configValue = this.cachedSorbetConfiguration.get(section, value);
     if (configValue === value) {
       // Remove value from state since configuration's is enough.
-      await this.workspaceState.update(stateKey, undefined);
+      this.memoryState.delete(stateKey);
     } else {
       // Save to state since it is being customized.
-      await this.workspaceState.update(stateKey, value);
+      this.memoryState.set(stateKey, value);
     }
 
     this.onDidChangeConfigurationEmitter.fire({
@@ -192,7 +190,7 @@ export class DefaultSorbetWorkspaceContext implements ISorbetWorkspaceContext {
    * Sorbet on first launch.
    */
   public async initializeEnabled(enabled: boolean): Promise<void> {
-    const stateEnabled = this.workspaceState.get<boolean>("sorbet.enabled");
+    const stateEnabled = this.memoryState.get("sorbet.enabled") as boolean | undefined;
 
     if (stateEnabled === undefined) {
       const cachedConfig = this.cachedSorbetConfiguration.inspect<boolean>(

@@ -22,8 +22,22 @@ export interface SorbetLspConfigData {
   readonly env: NodeJS.ProcessEnv;
   /**
    * Command and arguments to execute, e.g. `["srb", "typecheck", "--lsp"]`.
+   * Required for "spawn" transport; unused for "tcp" transport.
    */
-  readonly command: ReadonlyArray<string>;
+  readonly command?: ReadonlyArray<string>;
+  /**
+   * How to connect to the Sorbet LSP. Use "spawn" (default) to launch a
+   * subprocess, or "tcp" to connect to an already-running server.
+   */
+  readonly transport?: "spawn" | "tcp";
+  /**
+   * Hostname for TCP transport (default: "localhost").
+   */
+  readonly host?: string;
+  /**
+   * Port number for TCP transport.
+   */
+  readonly port?: number;
 }
 
 /**
@@ -48,8 +62,22 @@ export class SorbetLspConfig implements SorbetLspConfigData {
   public readonly env: NodeJS.ProcessEnv;
   /**
    * Command and arguments to execute, e.g. `["bundle", "exec", "srb", "typecheck", "--lsp"]`.
+   * Required for "spawn" transport; unused for "tcp" transport.
    */
-  public readonly command: ReadonlyArray<string>;
+  public readonly command?: ReadonlyArray<string>;
+  /**
+   * How to connect to the Sorbet LSP. Use "spawn" (default) to launch a
+   * subprocess, or "tcp" to connect to an already-running server.
+   */
+  public readonly transport?: "spawn" | "tcp";
+  /**
+   * Hostname for TCP transport (default: "localhost").
+   */
+  public readonly host?: string;
+  /**
+   * Port number for TCP transport.
+   */
+  public readonly port?: number;
 
   constructor(data: SorbetLspConfigData);
 
@@ -88,14 +116,19 @@ export class SorbetLspConfig implements SorbetLspConfigData {
       this.name = idOrData.name;
       this.description = idOrData.description;
       this.env = { ...idOrData.env };
-      this.command = [...idOrData.command];
+      this.command = idOrData.command ? [...idOrData.command] : undefined;
+      this.transport = idOrData.transport;
+      this.host = idOrData.host;
+      this.port = idOrData.port;
     }
   }
 
   public toString(): string {
-    return `${this.name}: ${this.description} [cmd: "${this.command.join(
-      " ",
-    )}"]`;
+    if (this.transport === "tcp") {
+      const host = this.host ?? "localhost";
+      return `${this.name}: ${this.description} [tcp: ${host}:${this.port}]`;
+    }
+    return `${this.name}: ${this.description} [cmd: "${(this.command ?? []).join(" ")}"]`;
   }
 
   /**
@@ -110,7 +143,11 @@ export class SorbetLspConfig implements SorbetLspConfigData {
       this.name === other.name &&
       this.description === other.description &&
       deepEqualEnv(this.env, other.env) &&
-      deepEqual(this.command, other.command)
+      ((this.command !== undefined && other.command !== undefined &&
+      deepEqual(this.command, other.command)) || (this.command === undefined && other.command === undefined)) &&
+      this.transport === other.transport &&
+      this.host === other.host &&
+      this.port === other.port
     );
   }
 
