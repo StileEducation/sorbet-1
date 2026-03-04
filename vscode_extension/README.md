@@ -101,32 +101,6 @@ For a container that does setup work before exposing the LSP, the pattern is:
    bidirectionally between the socket and the process's stdin/stdout
 4. When the socket closes, let Sorbet exit; wait for the next connection
 
-In Ruby:
-
-```ruby
-server = TCPServer.new('0.0.0.0', 5000)
-
-loop do
-  socket = server.accept
-
-  stdin_r, stdin_w = IO.pipe
-  stdout_r, stdout_w = IO.pipe
-  pid = Process.spawn(*sorbet_args, in: stdin_r, out: stdout_w, err: :err)
-  stdin_r.close
-  stdout_w.close
-
-  t1 = Thread.new { IO.copy_stream(socket, stdin_w) rescue nil; stdin_w.close }
-  t2 = Thread.new { IO.copy_stream(stdout_r, socket) rescue nil; socket.close }
-  t1.join
-  t2.join
-  Process.wait(pid) rescue nil
-end
-```
-
-Sorbet is restarted per connection. Because the extension retries automatically,
-this is transparent to the user — VSCode reconnects and re-runs the LSP
-handshake each time.
-
 ### Debugging
 
 To see all LSP messages exchanged between the extension and the server, add to
