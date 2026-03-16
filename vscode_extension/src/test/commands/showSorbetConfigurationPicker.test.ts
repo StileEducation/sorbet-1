@@ -55,13 +55,13 @@ suite(`Test Suite: ${path.basename(__filename, ".test.js")}`, () => {
       {
         label: `• ${activeLspConfig.name}`,
         description: activeLspConfig.description,
-        detail: activeLspConfig.command.join(" "),
+        detail: (activeLspConfig.command ?? []).join(" "),
         lspConfig: activeLspConfig,
       },
       {
         label: otherLspConfig.name,
         description: otherLspConfig.description,
-        detail: otherLspConfig.command.join(" "),
+        detail: (otherLspConfig.command ?? []).join(" "),
         lspConfig: otherLspConfig,
       },
       {

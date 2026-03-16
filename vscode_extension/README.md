@@ -32,6 +32,88 @@ The Sorbet extension for VS Code is powered by the
 
 - <https://sorbet.org/docs/lsp>
 
+## TCP Transport (Docker / Remote LSP)
+
+The extension can connect to a Sorbet LSP server over TCP instead of spawning a
+local subprocess. This is useful when Sorbet runs remotely, inside Docker Compose or
+another managed environment.
+
+### VSCode configuration
+
+Add a config entry with `"transport": "tcp"` to your `.vscode/settings.json`:
+
+```json
+"sorbet.lspConfigs": [{
+  "id": "docker-lsp",
+  "name": "Sorbet (Docker)",
+  "description": "Connect to LSP managed by Docker Compose",
+  "transport": "tcp",
+  "host": "localhost",
+  "port": 5000
+}],
+"sorbet.selectedLspConfigId": "docker-lsp",
+"sorbet.enabled": true
+```
+
+`host` defaults to `"localhost"` if omitted. `port` is required.
+
+The extension will attempt to connect every ~7 seconds until the server is
+available, so you can start Docker Compose before or after opening VSCode.
+
+### Server requirements
+
+The extension opens a **raw TCP socket** and speaks the
+[LSP wire format](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#baseProtocol)
+directly over it — there is no HTTP framing. Each message in both directions is:
+
+```
+Content-Length: <byte-length>\r\n
+\r\n
+<JSON body>
+```
+
+The connection is **full-duplex**: the server sends notifications (diagnostics,
+progress, log messages) to the client at any time without a corresponding
+request. Any server implementation that wraps `srb typecheck --lsp` must
+therefore be a **bidirectional byte pipe** — it cannot use HTTP
+request/response semantics, because:
+
+- The server sends unsolicited notifications (no `id`, no corresponding request)
+- The client pipelines multiple requests without waiting for prior responses
+- Responses may arrive out of order (matched by `id`)
+
+### Minimal implementation
+
+The simplest correct wrapper is a single `socat` command:
+
+```sh
+socat TCP-LISTEN:5000,reuseaddr,fork \
+  EXEC:"bundle exec srb typecheck --lsp"
+```
+
+### Docker Compose wrapper
+
+For a container that does setup work before exposing the LSP, the pattern is:
+
+1. Run any code generation at container startup (once, before the loop)
+2. Open a `TCPServer` on the configured port
+3. For each accepted connection, spawn `srb typecheck --lsp` and copy bytes
+   bidirectionally between the socket and the process's stdin/stdout
+4. When the socket closes, let Sorbet exit; wait for the next connection
+
+### Debugging
+
+To see all LSP messages exchanged between the extension and the server, add to
+your `.vscode/settings.json`:
+
+```json
+"ruby.trace.server": "verbose"
+```
+
+Then open **View → Output → Sorbet** to see the full JSON request/response log.
+To increase the extension's own log verbosity, use the command palette:
+**Sorbet: Set Log Level → Trace**.
+
 ## Developing on this Extension
 
 See [docs/lsp-dev-guide.md] for information on how to get started with LSP and

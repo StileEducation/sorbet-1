@@ -171,8 +171,7 @@
             "type": "object",
             "required": [
               "id",
-              "description",
-              "command"
+              "description"
             ],
             "properties": {
               "id": {
@@ -201,6 +200,21 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "transport": {
+                "description": "How to connect to the Sorbet LSP. Use 'spawn' (default) to launch a subprocess, or 'tcp' to connect to an already-running server.",
+                "type": "string",
+                "enum": ["spawn", "tcp"],
+                "default": "spawn"
+              },
+              "host": {
+                "description": "Hostname for TCP transport (default: 'localhost').",
+                "type": "string",
+                "default": "localhost"
+              },
+              "port": {
+                "description": "Port number for TCP transport.",
+                "type": "number"
               }
             }
           }
@@ -213,8 +227,7 @@
             "type": "object",
             "required": [
               "id",
-              "description",
-              "command"
+              "description"
             ],
             "properties": {
               "id": {
@@ -252,6 +265,21 @@
                 "items": {
                   "type": "string"
                 }
+              },
+              "transport": {
+                "description": "How to connect to the Sorbet LSP. Use 'spawn' (default) to launch a subprocess, or 'tcp' to connect to an already-running server.",
+                "type": "string",
+                "enum": ["spawn", "tcp"],
+                "default": "spawn"
+              },
+              "host": {
+                "description": "Hostname for TCP transport (default: 'localhost').",
+                "type": "string",
+                "default": "localhost"
+              },
+              "port": {
+                "description": "Port number for TCP transport.",
+                "type": "number"
               }
             },
             "default": {

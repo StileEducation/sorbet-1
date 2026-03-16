@@ -14,7 +14,9 @@ import {
   GenericNotificationHandler,
   LanguageClient,
   ServerCapabilities,
+  StreamInfo,
 } from "vscode-languageclient/node";
+import * as net from "net";
 import { ChildProcess, spawn } from "child_process";
 import { stopProcess } from "./connections";
 import { createClient } from "./languageClient";
@@ -218,9 +220,31 @@ export class SorbetLanguageClient implements Disposable, ErrorHandler {
    * Runs a Sorbet process using the current active configuration. Debounced so that it runs
    * Sorbet at most every MIN_TIME_BETWEEN_RETRIES_MS.
    */
-  private startSorbetProcess(): Promise<ChildProcess> {
+  private startSorbetProcess(): Promise<ChildProcess | StreamInfo> {
     this.context.log.info("Running Sorbet LSP.");
     const activeConfig = this.context.configuration.activeLspConfig;
+
+    if (activeConfig?.transport === "tcp") {
+      const host = activeConfig.host ?? "localhost";
+      const port = activeConfig.port;
+      if (!port) {
+        const msg = `TCP transport requires a port. ConfigId:${activeConfig.id}`;
+        this.context.log.error(msg);
+        return Promise.reject(new Error(msg));
+      }
+      this.context.log.info(`Connecting to Sorbet LSP at ${host}:${port}`);
+      return new Promise<StreamInfo>((resolve, reject) => {
+        const socket = net.createConnection({ host, port });
+        socket.on("connect", () => resolve({ writer: socket, reader: socket }));
+        socket.on("error", (err: NodeJS.ErrnoException) => {
+          this.context.log.error(
+            `Could not connect to Sorbet at ${host}:${port}: ${err.message}`,
+          );
+          reject(err);
+        });
+      });
+    }
+
     const [command, ...args] = activeConfig?.command ?? [];
     if (!command) {
       let msg: string;
@@ -298,16 +322,18 @@ export class SorbetLanguageClient implements Disposable, ErrorHandler {
         reason = RestartReason.FORCIBLY_TERMINATED;
       } else {
         reason = RestartReason.CRASH_LC_CLOSED;
-        this.context.log.error(
-          "The Sorbet LSP process crashed exit_code",
-          this.sorbetProcessExitCode,
-        );
-        this.context.log.error(
-          "The Node.js backtrace above is not useful.",
-          "If there is a C++ backtrace above, that is useful.",
-          "Otherwise, more useful output will be in the --debug-log-file to the Sorbet process",
-          "(if provided as a command-line argument).",
-        );
+        if (this.sorbetProcess) {
+          this.context.log.error(
+            "The Sorbet LSP process crashed exit_code",
+            this.sorbetProcessExitCode,
+          );
+          this.context.log.error(
+            "The Node.js backtrace above is not useful.",
+            "If there is a C++ backtrace above, that is useful.",
+            "Otherwise, more useful output will be in the --debug-log-file to the Sorbet process",
+            "(if provided as a command-line argument).",
+          );
+        }
       }
 
       this.status = ServerStatus.RESTARTING;

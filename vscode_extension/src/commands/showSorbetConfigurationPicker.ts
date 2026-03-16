@@ -22,7 +22,7 @@ export async function showSorbetConfigurationPicker(
       lspConfig.name
     }`,
     description: lspConfig.description,
-    detail: lspConfig.command.join(" "),
+    detail: (lspConfig.command ?? []).join(" "),
     lspConfig,
   }));
   items.push({
